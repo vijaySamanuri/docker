@@ -146,36 +146,24 @@ func TestCompareConfig(t *testing.T) {
 	config1 := Config{
 		PortSpecs:   []string{"1111:1111", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "11111111",
 		Volumes:     volumes1,
 	}
 	config2 := Config{
 		PortSpecs:   []string{"0000:0000", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "11111111",
-		Volumes:     volumes1,
-	}
-	config3 := Config{
-		PortSpecs:   []string{"0000:0000", "2222:2222"},
-		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "22222222",
 		Volumes:     volumes1,
 	}
 	volumes2 := make(map[string]struct{})
 	volumes2["/test2"] = struct{}{}
-	config4 := Config{
+	config3 := Config{
 		PortSpecs:   []string{"0000:0000", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "11111111",
 		Volumes:     volumes2,
 	}
 	if CompareConfig(&config1, &config2) {
 		t.Fatalf("CompareConfig should return false, PortSpecs are different")
 	}
 	if CompareConfig(&config1, &config3) {
-		t.Fatalf("CompareConfig should return false, VolumesFrom are different")
-	}
-	if CompareConfig(&config1, &config4) {
 		t.Fatalf("CompareConfig should return false, Volumes are different")
 	}
 	if !CompareConfig(&config1, &config1) {
@@ -190,7 +178,6 @@ func TestMergeConfig(t *testing.T) {
 	configImage := &Config{
 		PortSpecs:   []string{"1111:1111", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "1111",
 		Volumes:     volumesImage,
 	}
 
@@ -228,10 +215,6 @@ func TestMergeConfig(t *testing.T) {
 		if v != "/test1" && v != "/test2" && v != "/test3" {
 			t.Fatalf("Expected /test1 or /test2 or /test3, found %s", v)
 		}
-	}
-
-	if configUser.VolumesFrom != "1111" {
-		t.Fatalf("Expected VolumesFrom to be 1111, found %s", configUser.VolumesFrom)
 	}
 }
 

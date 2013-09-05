@@ -869,9 +869,6 @@ func (srv *Server) ContainerCreate(config *Config) (string, error) {
 		config.Memory = 0
 	}
 
-	if config.Memory > 0 && !srv.runtime.capabilities.SwapLimit {
-		config.MemorySwap = -1
-	}
 	b := NewBuilder(srv.runtime)
 	container, err := b.Create(config)
 	if err != nil {

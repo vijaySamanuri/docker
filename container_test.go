@@ -398,7 +398,7 @@ func TestOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err := container.Output()
+	output, err := container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -575,7 +575,7 @@ func TestRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err := container.Output()
+	output, err := container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -584,7 +584,7 @@ func TestRestart(t *testing.T) {
 	}
 
 	// Run the container again and check the output
-	output, err = container.Output()
+	output, err = container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -685,7 +685,7 @@ func TestUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err := container.Output()
+	output, err := container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -705,7 +705,7 @@ func TestUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err = container.Output()
+	output, err = container.Output(&HostConfig{})
 	if err != nil || container.State.ExitCode != 0 {
 		t.Fatal(err)
 	}
@@ -725,7 +725,7 @@ func TestUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err = container.Output()
+	output, err = container.Output(&HostConfig{})
 	if err != nil || container.State.ExitCode != 0 {
 		t.Fatal(err)
 	}
@@ -745,7 +745,7 @@ func TestUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err = container.Output()
+	output, err = container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	} else if container.State.ExitCode != 0 {
@@ -767,7 +767,7 @@ func TestUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err = container.Output()
+	output, err = container.Output(&HostConfig{})
 	if err != nil || container.State.ExitCode != 0 {
 		t.Fatal(err)
 	}
@@ -787,7 +787,7 @@ func TestUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err = container.Output()
+	output, err = container.Output(&HostConfig{})
 	if container.State.ExitCode == 0 {
 		t.Fatal("Starting container with wrong uid should fail but it passed.")
 	}
@@ -1003,7 +1003,7 @@ func TestEntrypoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err := container.Output()
+	output, err := container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1025,7 +1025,7 @@ func TestEntrypointNoCmd(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err := container.Output()
+	output, err := container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1131,7 +1131,7 @@ func BenchmarkRunSequencial(b *testing.B) {
 			b.Fatal(err)
 		}
 		defer runtime.Destroy(container)
-		output, err := container.Output()
+		output, err := container.Output(&HostConfig{})
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -1241,7 +1241,7 @@ func TestVolumesFromReadonlyMount(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	_, err = container.Output()
+	_, err = container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1253,7 +1253,6 @@ func TestVolumesFromReadonlyMount(t *testing.T) {
 		&Config{
 			Image:       GetTestImage(runtime).ID,
 			Cmd:         []string{"/bin/echo", "-n", "foobar"},
-			VolumesFrom: container.ID,
 		},
 	)
 	if err != nil {
@@ -1261,7 +1260,11 @@ func TestVolumesFromReadonlyMount(t *testing.T) {
 	}
 	defer runtime.Destroy(container2)
 
-	_, err = container2.Output()
+	_, err = container2.Output(
+		&HostConfig{
+			VolumesFrom: container.ID,
+		},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1302,7 +1305,7 @@ func TestRestartWithVolumes(t *testing.T) {
 		}
 	}
 
-	_, err = container.Output()
+	_, err = container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1312,7 +1315,7 @@ func TestRestartWithVolumes(t *testing.T) {
 		t.Fail()
 	}
 	// Run the container again to verify the volume path persists
-	_, err = container.Output()
+	_, err = container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1345,7 +1348,7 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 		}
 	}
 
-	_, err = container.Output()
+	_, err = container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1359,7 +1362,6 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 		&Config{
 			Image:       GetTestImage(runtime).ID,
 			Cmd:         []string{"cat", "/test/foo"},
-			VolumesFrom: container.ID,
 			Volumes:     map[string]struct{}{"/test": {}},
 		},
 	)
@@ -1368,7 +1370,11 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 	}
 	defer runtime.Destroy(container2)
 
-	output, err := container2.Output()
+	output, err := container2.Output(
+		&HostConfig{
+			VolumesFrom: container.ID,
+		},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1382,7 +1388,7 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 	}
 
 	// Ensure it restarts successfully
-	_, err = container2.Output()
+	_, err = container2.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
