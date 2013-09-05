@@ -171,7 +171,7 @@ func TestDiff(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image - diff", "", nil)
+	img, err := runtime.graph.Create(rwTar, container1, "", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -239,7 +239,7 @@ func TestCommitAutoRun(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image", "", &Config{Cmd: []string{"cat", "/world"}})
+	img, err := runtime.graph.Create(rwTar, container1, "", &Config{Cmd: []string{"cat", "/world"}})
 	if err != nil {
 		t.Error(err)
 	}
@@ -299,7 +299,7 @@ func TestCommitRun(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image", "", nil)
+	img, err := runtime.graph.Create(rwTar, container1, "", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -467,7 +467,7 @@ func TestCreateVolume(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	config, hc, _, err := ParseRun([]string{"-v", "/var/lib/data", GetTestImage(runtime).ID, "echo", "hello", "world"}, nil)
+	config, hc, _, _, err := ParseRun([]string{"-v", "/var/lib/data", GetTestImage(runtime).ID, "echo", "hello", "world"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1072,14 +1072,16 @@ func TestLXCConfig(t *testing.T) {
 
 		Hostname:  "foobar",
 		Memory:    int64(mem),
-		CpuShares: int64(cpu),
 	},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	container.generateLXCConfig(nil)
+	hostConfig := &HostConfig{
+		CpuShares: int64(cpu),
+	}
+	container.generateLXCConfig(hostConfig)
 	grepFile(t, container.lxcConfigPath(), "lxc.utsname = foobar")
 	grepFile(t, container.lxcConfigPath(),
 		fmt.Sprintf("lxc.cgroup.memory.limit_in_bytes = %d", mem))
@@ -1111,7 +1113,6 @@ func TestCustomLxcConfig(t *testing.T) {
 			Value: "0,1",
 		},
 	}}
-
 	container.generateLXCConfig(hostConfig)
 	grepFile(t, container.lxcConfigPath(), "lxc.utsname = docker")
 	grepFile(t, container.lxcConfigPath(), "lxc.cgroup.cpuset.cpus = 0,1")
@@ -1391,7 +1392,7 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	config, hc, _, err := ParseRun([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show"}, nil)
+	config, hc, _, _, err := ParseRun([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1410,6 +1411,7 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	}
 	c.WaitTimeout(500 * time.Millisecond)
 	c.Wait()
+
 	output, err := ioutil.ReadAll(stdout)
 	if err != nil {
 		t.Fatal(err)

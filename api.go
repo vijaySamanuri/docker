@@ -369,8 +369,7 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 	tag := r.Form.Get("tag")
 	container := r.Form.Get("container")
 	author := r.Form.Get("author")
-	comment := r.Form.Get("comment")
-	id, err := srv.ContainerCommit(container, repo, tag, author, comment, config)
+	id, err := srv.ContainerCommit(container, repo, tag, author, config)
 	if err != nil {
 		return err
 	}
@@ -511,16 +510,6 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
 		return err
-	}
-
-	resolvConf, err := utils.GetResolvConf()
-	if err != nil {
-		return err
-	}
-
-	if len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
-		out.Warnings = append(out.Warnings, fmt.Sprintf("Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
-		config.Dns = defaultDns
 	}
 
 	id, err := srv.ContainerCreate(config)
