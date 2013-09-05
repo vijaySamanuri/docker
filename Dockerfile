@@ -29,6 +29,7 @@ run	PKG=github.com/gorilla/context/ REV=708054d61e5; git clone http://$PKG /go/s
 run	PKG=github.com/gorilla/mux/ REV=9b36453141c;	 git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
 run	PKG=github.com/dotcloud/tar/ REV=e5ea6bb21a3294;	 git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
 run	PKG=code.google.com/p/go.net/ REV=84a4013f96e0;  hg  clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && hg  checkout    $REV
+run	PKG=code.google.com/p/getopt/ REV=b23bed28ee5c;  hg  clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && hg  checkout    $REV
 # Upload docker source
 add	.       /go/src/github.com/dotcloud/docker
 run	ln -s	/go/src/github.com/dotcloud/docker /src
