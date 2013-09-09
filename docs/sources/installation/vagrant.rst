@@ -10,7 +10,7 @@ Using Vagrant (Mac, Linux)
 This guide will setup a new virtualbox virtual machine with docker
 installed on your computer. This works on most operating systems,
 including MacOX, Windows, Linux, FreeBSD and others. If you can
-install these and have at least 400Mb RAM to spare you should be good.
+install these and have at least 400MB RAM to spare you should be good.
 
 Install Vagrant and Virtualbox
 ------------------------------
@@ -37,7 +37,13 @@ Spin it up
 
       git clone https://github.com/dotcloud/docker.git
 
-2. Run vagrant from the sources directory
+2. Change directory to docker
+
+   .. code-block:: bash
+
+      cd docker
+
+3. Run vagrant from the sources directory
 
    .. code-block:: bash
 
