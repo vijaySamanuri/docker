@@ -11,16 +11,15 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
-	"net"
 )
 
 type Container struct {
@@ -42,6 +41,8 @@ type Container struct {
 
 	SysInitPath    string
 	ResolvConfPath string
+	HostnamePath   string
+	HostsPath      string
 
 	cmd       *exec.Cmd
 	stdout    *utils.WriteBroadcaster
@@ -63,6 +64,7 @@ type Container struct {
 
 type Config struct {
 	Hostname        string
+	Domainname      string
 	User            string
 	Memory          int64 // Memory limit (in bytes)
 	PortSpecs       []string
@@ -209,8 +211,17 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		return nil, nil, nil, cmd, err
 	}
 
+	hostname := *flHostname
+	domainname := ""
+
+	parts := strings.SplitN(hostname, ".", 2)
+	if len(parts) > 1 {
+		hostname = parts[0]
+		domainname = parts[1]
+	}
 	config := &Config{
-		Hostname:        *flHostname,
+		Hostname:        hostname,
+		Domainname:      domainname,
 		PortSpecs:       flPorts,
 		User:            *flUser,
 		Tty:             *flTty,
@@ -263,17 +274,28 @@ type NetworkSettings struct {
 	PortMapping map[string]PortMapping
 }
 
-// String returns a human-readable description of the port mapping defined in the settings
-func (settings *NetworkSettings) PortMappingHuman() string {
-	var mapping []string
+// returns a more easy to process description of the port mapping defined in the settings
+func (settings *NetworkSettings) PortMappingAPI() []APIPort {
+	var mapping []APIPort
 	for private, public := range settings.PortMapping["Tcp"] {
-		mapping = append(mapping, fmt.Sprintf("%s->%s", public, private))
+		pubint, _ := strconv.ParseInt(public, 0, 0)
+		privint, _ := strconv.ParseInt(private, 0, 0)
+		mapping = append(mapping, APIPort{
+			PrivatePort: privint,
+			PublicPort:  pubint,
+			Type:        "tcp",
+		})
 	}
 	for private, public := range settings.PortMapping["Udp"] {
-		mapping = append(mapping, fmt.Sprintf("%s->%s/udp", public, private))
+		pubint, _ := strconv.ParseInt(public, 0, 0)
+		privint, _ := strconv.ParseInt(private, 0, 0)
+		mapping = append(mapping, APIPort{
+			PrivatePort: privint,
+			PublicPort:  pubint,
+			Type:        "udp",
+		})
 	}
-	sort.Strings(mapping)
-	return strings.Join(mapping, ", ")
+	return mapping
 }
 
 // Inject the io.Reader at the given path. Note: do not close the reader
@@ -720,11 +742,13 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		if _, exists := container.Volumes[volPath]; exists {
 			continue
 		}
+		var srcPath string
+		srcRW := false
 		// If an external bind is defined for this volume, use that as a source
 		if bindMap, exists := binds[volPath]; exists {
-			container.Volumes[volPath] = bindMap.SrcPath
+			srcPath = bindMap.SrcPath
 			if strings.ToLower(bindMap.Mode) == "rw" {
-				container.VolumesRW[volPath] = true
+				srcRW = true
 			}
 			// Otherwise create an directory in $ROOT/volumes/ and use that
 		} else {
@@ -732,16 +756,35 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 			if err != nil {
 				return err
 			}
-			srcPath, err := c.layer()
+			srcPath, err = c.layer()
 			if err != nil {
 				return err
 			}
-			container.Volumes[volPath] = srcPath
-			container.VolumesRW[volPath] = true // RW by default
+			srcRW = true // RW by default
 		}
+		container.Volumes[volPath] = srcPath
+		container.VolumesRW[volPath] = srcRW
 		// Create the mountpoint
-		if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+		rootVolPath := path.Join(container.RootfsPath(), volPath)
+		if err := os.MkdirAll(rootVolPath, 0755); err != nil {
 			return nil
+		}
+		if srcRW {
+			volList, err := ioutil.ReadDir(rootVolPath)
+			if err != nil {
+				return err
+			}
+			if len(volList) > 0 {
+				srcList, err := ioutil.ReadDir(srcPath)
+				if err != nil {
+					return err
+				}
+				if len(srcList) == 0 {
+					if err := CopyWithTar(rootVolPath, srcPath); err != nil {
+						return err
+					}
+				}
+			}
 		}
 	}
 	
@@ -885,10 +928,10 @@ func (container *Container) allocateNetwork() error {
 			iface = &NetworkInterface{disabled: true}
 		} else {
 			iface = &NetworkInterface{
-				IPNet: net.IPNet{IP: net.ParseIP(container.NetworkSettings.IPAddress), Mask: manager.bridgeNetwork.Mask},
+				IPNet:   net.IPNet{IP: net.ParseIP(container.NetworkSettings.IPAddress), Mask: manager.bridgeNetwork.Mask},
 				Gateway: manager.bridgeNetwork.IP,
 				manager: manager,
-				}
+			}
 			ipNum := ipToInt(iface.IPNet.IP)
 			manager.ipAllocator.inUse[ipNum] = struct{}{}
 		}
@@ -899,10 +942,10 @@ func (container *Container) allocateNetwork() error {
 		portSpecs = container.Config.PortSpecs
 	} else {
 		for backend, frontend := range container.NetworkSettings.PortMapping["Tcp"] {
-			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/tcp",frontend, backend))
+			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/tcp", frontend, backend))
 		}
 		for backend, frontend := range container.NetworkSettings.PortMapping["Udp"] {
-			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/udp",frontend, backend))
+			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/udp", frontend, backend))
 		}
 	}
 

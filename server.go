@@ -157,7 +157,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 }
 
 func (srv *Server) ImagesViz(out io.Writer) error {
-	images, _ := srv.runtime.graph.All()
+	images, _ := srv.runtime.graph.Map()
 	if images == nil {
 		return nil
 	}
@@ -248,7 +248,7 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 }
 
 func (srv *Server) DockerInfo() *APIInfo {
-	images, _ := srv.runtime.graph.All()
+	images, _ := srv.runtime.graph.Map()
 	var imgcount int
 	if images == nil {
 		imgcount = 0
@@ -387,7 +387,7 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 		c.Command = fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
 		c.Created = container.Created.Unix()
 		c.Status = container.State.String()
-		c.Ports = container.NetworkSettings.PortMappingHuman()
+		c.Ports = container.NetworkSettings.PortMappingAPI()
 		if size {
 			c.SizeRw, c.SizeRootFs = container.GetSize()
 		}
@@ -656,6 +656,9 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 
 	out = utils.NewWriteFlusher(out)
 	err = srv.pullRepository(r, out, localName, remoteName, tag, endpoint, sf, parallel)
+	if err == registry.ErrLoginRequired {
+		return err
+	}
 	if err != nil {
 		if err := srv.pullImage(r, out, remoteName, endpoint, nil, sf); err != nil {
 			return err
@@ -1104,7 +1107,7 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) {
 
 	// Retrieve all images
-	images, err := srv.runtime.graph.All()
+	images, err := srv.runtime.graph.Map()
 	if err != nil {
 		return nil, err
 	}
